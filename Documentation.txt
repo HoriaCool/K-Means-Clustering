@@ -1,0 +1,94 @@
+Nedelcu Horia
+311CA Group
+
+
+Homework1 - Numerical Methods Clustering - K-Means Algorithm
+
+    * Get centroids:
+    Initially each centroid of each cluster is randomly chosen
+from the set of points so that they do not overlap eachother. Each
+point is assigned to the cluster that minimizes the distance
+between point and centroid. New centroids become the mass centers
+of formed clusters. The process is repeated until the centroids
+stabilize (the distance to the new position is less than an
+error/tolerance).
+
+    To optimize the program speed we used vectorizations as follows:
+    - first we create matrix A as the centroid matrix multiplied by
+np (number of points) times and matrix B as the matrix of points after
+we multiply each row nc (number of centroids / clusters) times;
+    - we get 2 matrices of size np * nc * the number of characteristics (3);
+    - the norm of the difference between A and B represents a column vector
+with distances between each point and each centroid;
+    - reshaping this vector, we get the matrix of distances between
+each point and each centroid;
+    - from this matrix we can extract the minimum distance, respectively
+the cluster of each point;
+    - if we had only one cluster, we directly calculate the associated centroid.
+
+    This solution was tested in parallel with a banal solution without many
+vectorizations. The time difference has been almost one second every time.
+
+    Example:
+
+    step 0:                             step 2:             step 3:
+    centroids:   points:                Diff: (A - B)       eucld: (norm(Diff))
+     0  0  0       1  1  1              -1 -1 -1  |1        1.73
+     1  2  1       0  1  0           1|  0  1  0  |2        1
+     3  4  5       2  2  2               2  3  4  |3 (nc)   5.38
+                   3  1  5
+     nc = 3 (rows)                       0 -1  0  |1        1
+     np = 4 (rows)                   2|  1  1  1  |2        1.73
+                                         3  3  5  |3 (nc)   6.55
+    step 1:
+    A: (repmat)   B: (kron)             -2 -2 -2  |1        3.46
+     0  0  0       1  1  1  |1       3| -1  0 -1  |2        1.41
+1|   1  2  1       1  1  1  |2           1  2  3  |3 (nc)   3.74
+     3  4  5       1  1  1  |3 (nc)
+                                        -3 -1 -5  |1        5.91
+     0  0  0       0  1  0  |1       4| -2  1 -4  |2        4.58
+2|   1  2  1       0  1  0  |2      (np) 0  3  0  |3 (nc)   3
+     3  4  5       0  1  0  |3 (nc)
+                                        step 4:
+     0  0  0       2  2  2  |1          eucld_mat: (reshape(eucld))
+3|   1  2  1       2  2  2  |2           1     2     3     4 (np)
+     3  4  5       2  2  2  |3 (nc)  1|  1.73  1     3.46  5.91
+                                     2|  1     1.73  1.41  4.58
+     0  0  0       3  1  5  |1       3|  5.38  6.55  3.74  3
+4|   1  2  1       3  1  5  |2      (nc)
+(np) 3  4  5       3  1  5  |3 (nc)
+
+    step 5:
+    [min_dist cluster] = min(eucld) ON ROWS (nc > 1)
+    min_dist:
+     1     2     3     4 (np)
+     1     1     1.41  3
+
+    cluster: { f(eucld_mat) | f = @(x) [i j] = find(x == min(x)) }
+     1     2     3     4 (np)
+     2     1     2     3
+
+    * Compute cost:
+    The cost is the sum of the minimum distances, specifying that for a single
+cluster (nc = 1) we no longer have to create the matrix B and calculate the
+minimum distances.
+    - cost = sum(eucld), n = 1;
+    - cost = sum(min_dist), n > 1;
+
+    * View clusters:
+    The only problem here was how to generate different colors for clusters;
+    - first I tried to generate the colors for the RGB format as follows:
+        color = [rand (1, 1) rand (1, 1) rand (1, 1)];
+
+    - after this attempt did not work very well I thought to assign for each
+cluster's color a vector of intervals of form ( (i-1)/NC, i/NC ), i = 1:NC )
+in the following way:
+        % function that leads the interval (0, 1) in the interval
+        % ((i - 1) / NC, i / NC)
+        get_color = @(i) (rand(1 ,1) + i - 1) / NC;
+        color = arrayfun(get_color, [randperm(NC); randperm(NC); randperm(NC)]);
+    - although this method ensures 100% different colors, they were often
+similar and hard to distinguish;
+
+    - In the end, I found and used the hsv function.
+
